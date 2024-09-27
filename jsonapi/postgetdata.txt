@@ -1,0 +1,143 @@
+Here’s the refactored format based on the provided data:
+
+---
+
+**Method:** `PUT`  
+**URL:** `http://localhost:8000/rooms/landlords/1/`  
+**JSON Data (with example value):**
+```json
+{
+  "address": "Thamel"
+}
+```
+
+---
+
+**Method:** `POST`  
+**URL:** `http://localhost:8000/rooms/register/`  
+**JSON Data (with example value):**
+```json
+{
+  "email": "lord@email.com",
+  "first_name": "lord",
+  "last_name": "land",
+  "password": "land@123456",
+  "password2": "land@123456",
+  "is_landowner": "true",
+  "contact_number": "9817823670"
+}
+```
+
+---
+
+**Method:** `POST`  
+**URL:** `http://localhost:8000/rooms/landlords/`  
+**JSON Data (no data provided)**
+  
+---
+
+**Method:** `POST`  
+**URL:** `http://localhost:8000/rooms/login/`  
+**JSON Data (with example value):**
+```json
+{
+  "email": "land@email.com",
+  "password": "land@123456"
+}
+```
+
+---
+
+**Method:** `POST`  
+**URL:** `http://localhost:8000/rooms/visit-request/cancel/1/`  
+**JSON Data (no data provided)**  
+**Other required items:**  
+Authorization token: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
+
+---
+
+**Method:** `GET`  
+**URL:** `http://localhost:8000/rooms/leasees/`  
+**JSON Data (no data provided)**
+  
+---
+
+**Method:** `PUT`  
+**URL:** `http://localhost:8000/rooms/leasees/1/`  
+**JSON Data (with example value):**
+```json
+{
+  "address": "Thamel"
+}
+```
+
+---
+
+**Method:** `GET`  
+**URL:** `http://localhost:8000/rooms/rooms/`  
+**JSON Data (with example value):**
+```json
+{
+  "title": "Spacious Room in Downtown",
+  "description": "A cozy, fully furnished room located in the heart of the city. Ideal for students or professionals.",
+  "price": "500.00",
+  "address": "Thamel",
+  "sub_address": "Block A, Room 302",
+  "location_url": "https://maps.google.com/?q=27.7172,85.3240",
+  "has_electricity": true,
+  "has_wifi": true,
+  "has_water_supply": true,
+  "has_parking": false,
+  "is_available": true,
+  "pets_allowed": true,
+  "smoking_allowed": false
+}
+```
+
+---
+
+**Method:** `GET`  
+**URL:** `http://localhost:8000/rooms/rooms/1/`  
+**JSON Data (with example value):**
+```json
+{
+  "has_parking": true
+}
+```
+
+**Other required items:**  
+Authorization token: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
+
+---
+
+**Method:** `POST`  
+**URL:** `http://localhost:8000/rooms/deposit/`  
+**JSON Data (with example value):**
+```json
+{
+  "room_id": 1
+}
+```
+
+---
+
+**Method:** `POST`  
+**URL:** `http://localhost:8000/rooms/visit-request/`  
+**JSON Data (with example value):**
+```json
+{
+  "room_id": 1
+}
+```
+
+---
+
+**Method:** `GET`  
+**URL:** `http://localhost:8000/rooms/notifications/`  
+**JSON Data (no data provided)**  
+**Other required items:**  
+Authorization token: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
+
+---
+
+Let me know if you'd like to make any adjustments!
