@@ -5,6 +5,7 @@ from django.core.validators import RegexValidator
 from rooms.locations import LOCATION_CHOICES
 from django.core.mail import send_mail
 from django.conf import settings
+from cloudinary.models import CloudinaryField
 # Custom user manager
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -43,9 +44,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         ]
     )
     contact_number = models.CharField(
-        max_length=15,
-        validators=[RegexValidator(r'^\+?1?\d{9,15}$', message="Enter a valid phone number")],
-        help_text="Contact phone number"
+    max_length=15,
+    help_text="Contact phone number"
     )
     is_landowner = models.BooleanField(default=False, help_text="Check this if the user is a landowner, otherwise they will be a leasee.")
     is_active = models.BooleanField(default=True)
@@ -114,7 +114,8 @@ class Room(models.Model):
     
     # Availability and Photos
     is_available = models.BooleanField(default=True, help_text="Is the room available for rent?")
-    photos = models.ImageField(upload_to='room_photos/', null=True, blank=True, help_text="Upload room photos.")
+    # photos = models.ImageField(upload_to='room_photos/', null=True, blank=True, help_text="Upload room photos.")
+    photos = CloudinaryField('room_photos/', null=True, blank=True, help_text="Upload room photos.")
     
     # Ratings and Reviews
     rating = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True, help_text="Overall rating from reviews.")
