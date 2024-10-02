@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CustomUser, Landlord, Leasee,Room,Deposit,Notification, VisitRequest
+from .models import CustomUser, Landlord, Leasee,Room,Deposit,Notification, VisitRequest,ContactForm
 
 @admin.register(CustomUser)
 class CustomUserAdmin(admin.ModelAdmin):
@@ -21,6 +21,10 @@ class LeaseeAdmin(admin.ModelAdmin):
 @admin.register(Deposit)
 class LeaseeAdmin(admin.ModelAdmin):
     list_display = ('leasee', 'room', 'amount', 'payment_status',)
+@admin.register(ContactForm)
+class LeaseeAdmin(admin.ModelAdmin):
+    list_display = ('id','name', 'email', 'subject', 'message','status',)
 
 admin.site.register(Notification)
 admin.site.register(VisitRequest)
+

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from rooms.models import CustomUser,Landlord,Leasee,Room
+from rooms.models import CustomUser,Landlord,Leasee,Room,Deposit,ContactForm
 from django.contrib.auth import authenticate
 from django.utils.translation import gettext_lazy as _
 class CustomUserSerializer(serializers.ModelSerializer):
@@ -49,7 +49,7 @@ class LoginSerializer(serializers.Serializer):
 
             user = authenticate(request=self.context.get('request'), email=email, password=password)
             if not user:
-                raise serializers.ValidationError(_("Unable to log in with provided credentials."), code='authorization')
+                raise serializers.ValidationError(_("Password provided does not match."), code='authorization')
         else:
             raise serializers.ValidationError(_("Must include 'email' and 'password'."), code='authorization')
 
@@ -101,4 +101,20 @@ class RoomSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Location URL must start with 'http://' or 'https://'.")
         return value
 
-    
+class DepositSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Deposit
+        fields = ['id', 'leasee', 'room', 'amount', 'payment_status', 'deposit_date']
+        read_only_fields = ['id', 'deposit_date']
+
+class ContactFormSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContactForm
+        fields = ['id', 'name', 'email', 'subject', 'message', 'status', 'created_at']
+        read_only_fields = ['status', 'created_at']  # Status and creation date are read-only
+
+    # Optionally add custom validation for the subject if needed
+    def validate_subject(self, value):
+        if value not in dict(ContactForm.SUBJECT_CHOICES):
+            raise serializers.ValidationError("Invalid subject choice")
+        return value

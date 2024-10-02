@@ -15,12 +15,19 @@ from .views import (
     CancelVisitRequestView,
     NotificationListView,  # Imported notification views
     MarkNotificationAsReadView,
+    RoomGetAPIView,
+    RoomGetDetailView,
+    LogoutView,
+    RoomFilterView,
+    ContactFormView
 )
 
 urlpatterns = [
     path('register/', UserListView.as_view(), name='user-list'),
     path('register/<int:pk>/', UserDetailView.as_view(), name='user-detail'),
     path('login/', LoginView.as_view(), name='login'),
+    path('logout/', LogoutView.as_view(), name='logout'),
+    
     path('landlords/', LandlordListView.as_view(), name='landlord-list'),
     path('landlords/<int:pk>/', LandlordDetailView.as_view(), name='landlord-detail'),
     path('leasees/', LeaseeListView.as_view(), name='leasee-list'),
@@ -37,4 +44,12 @@ urlpatterns = [
     # Notification URLs
     path('notifications/', NotificationListView.as_view(), name='notification_list'),
     path('notifications/read/<int:notification_id>/', MarkNotificationAsReadView.as_view(), name='mark_notification_as_read'),
+    
+    path('roomsview/',RoomGetAPIView.as_view(),name="rooms-view"),
+    path('roomsview/<int:pk>/',RoomGetDetailView.as_view(),name="rooms-detail-view"),
+
+    path('rooms-filter/', RoomFilterView.as_view(), name='room-list'),
+    
+    path('contact/', ContactFormView.as_view(), name='contact-form')
 ]
+

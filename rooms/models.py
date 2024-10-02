@@ -103,8 +103,8 @@ class Room(models.Model):
     
     # Location Fields
     address = models.CharField(max_length=255, help_text="Full address of the room.")
-    sub_address = models.CharField(max_length=255, null=True, blank=True, help_text="Street name or specific sub-address.")
-    location_url = models.URLField(max_length=500, null=True, blank=True, help_text="URL for the map location of the room.")
+    sub_address = models.CharField(max_length=255, help_text="Street name or specific sub-address.")
+    location_url = models.URLField(max_length=500, help_text="URL for the map location of the room.")
     
     # Amenities
     has_electricity = models.BooleanField(default=False, help_text="Is 24-hour electricity available?")
@@ -209,3 +209,31 @@ class Notification(models.Model):
     def mark_as_read(self):
         self.is_read = True
         self.save()
+
+class ContactForm(models.Model):
+    # Subject choices
+    SUBJECT_CHOICES = [
+        ('problem', 'Problem'),
+        ('feedback', 'Feedback'),
+        ('suggestion', 'Suggestion'),
+        ('question', 'Question'),
+    ]
+
+    # Status choices
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('resolved', 'Resolved'),
+    ]
+
+    # Model fields
+    name = models.CharField(max_length=255)
+    email = models.EmailField()
+    subject = models.CharField(max_length=50, choices=SUBJECT_CHOICES)
+    message = models.TextField()
+    status = models.CharField(
+        max_length=10, choices=STATUS_CHOICES, default='pending'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)  # To track when the form was submitted
+
+    def __str__(self):
+        return f'{self.name} - {self.subject} ({self.status})'
