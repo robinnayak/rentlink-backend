@@ -2,6 +2,9 @@ from pathlib import Path
 from datetime import timedelta
 import os
 from decouple import config
+from dj_database_url import parse as db_url
+import cloudinary
+import cloudinary.uploader
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -14,9 +17,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-0*ul!-!24-0*09ojfhmqi9lt+2am!pn2p^^6_qrbtoeot=%uck'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=bool)
+# DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
+CSRF_TRUSTED_ORIGINS = ["https://disha.up.railway.app"]
 
 # Application definition
 
@@ -77,13 +82,17 @@ WSGI_APPLICATION = 'roomlink.wsgi.application'
 
 # Database
 # Replace the database engine and credentials with what you need.
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
+# Database configuration using environment variable
+DATABASES = {
+    'default': db_url(config('DATABASE_URL'))
+}
 
 # Custom User Model
 AUTH_USER_MODEL = 'rooms.CustomUser'  # Replace 'your_app_name' with the actual app name
@@ -115,8 +124,13 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
+# STATIC_URL = '/static/'
+# STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 
 # Media files (uploaded by users)
 MEDIA_URL = '/media/'
@@ -152,6 +166,15 @@ CORS_ALLOWED_ORIGINS = [
 
 # Static and media files
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Configuration       
+cloudinary.config(
+    cloud_name=config('CLOUDINARY_CLOUD_NAME'),
+    api_key=config('CLOUDINARY_API_KEY'),
+    api_secret=config('CLOUDINARY_API_SECRET'),
+    secure=True
+)
+
 
 # Email configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

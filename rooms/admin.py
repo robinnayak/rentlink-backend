@@ -3,7 +3,7 @@ from .models import CustomUser, Landlord, Leasee,Room,Deposit,Notification, Visi
 
 @admin.register(CustomUser)
 class CustomUserAdmin(admin.ModelAdmin):
-    list_display = ('email', 'first_name', 'last_name','contact_number' ,'is_staff', 'is_active', 'date_joined')
+    list_display = ('email', 'first_name', 'last_name' ,'is_staff', 'is_active', 'date_joined')
 
 @admin.register(Landlord)
 class LandlordAdmin(admin.ModelAdmin):
