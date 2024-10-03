@@ -133,7 +133,13 @@ class Room(models.Model):
         Check if the given leasee has made a successful deposit for this room.
         """
         return self.deposits.filter(leasee=leasee, payment_status='paid').exists()
-    
+
+class RoomImage(models.Model):
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='room_images')
+    image = CloudinaryField('room_image', null=True,blank=True, help_text="Upload an image of the room.")
+
+    def __str__(self):
+        return f"Image for {self.room.title} - {self.room.rent_giver.user.email}"
 
 class Deposit(models.Model):
     leasee = models.ForeignKey(Leasee, on_delete=models.CASCADE, related_name='deposits')

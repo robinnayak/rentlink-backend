@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from rooms.models import CustomUser,Landlord,Leasee,Room,Deposit,ContactForm
+from rooms.models import CustomUser,Landlord,Leasee,Room,Deposit,ContactForm,RoomImage
 from django.contrib.auth import authenticate
 from django.utils.translation import gettext_lazy as _
 class CustomUserSerializer(serializers.ModelSerializer):
@@ -73,10 +73,17 @@ class LeaseeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Leasee
         fields = ['email', 'first_name', 'last_name' ,'contact_number','address', 'sub_address','preferred_location', 'reviews', 'location_url']
-        
+      
+class RoomImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RoomImage
+        fields = ['id', 'image']  # 'id' is included so that you can retrieve it if needed
+  
 class RoomSerializer(serializers.ModelSerializer):
     owner_email = serializers.ReadOnlyField(source='rent_giver.user.email')
     contact_number = serializers.ReadOnlyField(source='rent_giver.user.contact_number')
+    # Nested serializer for room images
+    room_images = RoomImageSerializer(many=True, required=False)
 
     class Meta:
         model = Room
@@ -84,11 +91,23 @@ class RoomSerializer(serializers.ModelSerializer):
             'id', 'owner_email', 'contact_number', 'title', 'description', 'price', 
             'address', 'sub_address', 'location_url', 
             'has_electricity', 'has_wifi', 'has_water_supply', 'has_parking',
-            'is_available', 'photos', 'rating', 
+            'is_available', 'photos','room_images' ,'rating', 
             'pets_allowed', 'smoking_allowed', 'curfew_time'
         ]
-        read_only_fields = ['id', 'owner_email', 'contact_number', 'rating']
+        read_only_fields = ['id', 'owner_email', 'contact_number']
+    
+    def update(self, instance, validated_data):
+        # Handle room images update
+        room_images_data = self.context['request'].FILES.getlist('room_images')
+        if room_images_data:
+            RoomImage.objects.filter(room=instance).delete()  # Clear existing images
+            for image_data in room_images_data:
+                RoomImage.objects.create(room=instance, image=image_data)
 
+        # Update other fields
+        instance = super().update(instance, validated_data)
+        return instance
+    
     def validate_price(self, value):
         """Ensure the price is positive."""
         if value <= 0:
