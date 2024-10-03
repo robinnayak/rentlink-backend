@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from django.db import transaction
 from rest_framework import status
 from django.shortcuts import get_object_or_404
-from .models import CustomUser,Leasee,Landlord,Room,Deposit,VisitRequest, Notification,ContactForm
-from .serializers import CustomUserSerializer, CustomUserCreateSerializer,LoginSerializer,LeaseeSerializer,LandlordSerializer,RoomSerializer,DepositSerializer, ContactFormSerializer
+from .models import CustomUser,Leasee,Landlord,Room,Deposit,VisitRequest, Notification,ContactForm,RoomImage
+from .serializers import CustomUserSerializer, CustomUserCreateSerializer,LoginSerializer,LeaseeSerializer,LandlordSerializer,RoomSerializer,DepositSerializer, ContactFormSerializer,RoomImageSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from decimal import Decimal
@@ -12,6 +12,7 @@ from django.db.models import Q
 from django.contrib.auth import login, logout, authenticate
 from django_filters.rest_framework import DjangoFilterBackend
 from rooms.filters import RoomFilter
+from rest_framework.parsers import MultiPartParser, FormParser
 class UserListView(APIView):
     def get(self, request):
         users = CustomUser.objects.all()
@@ -210,6 +211,7 @@ class RoomGetDetailView(APIView):
 
 class RoomAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]  # To handle file uploads
 
     def get(self, request, *args, **kwargs):
         """
@@ -225,20 +227,33 @@ class RoomAPIView(APIView):
 
     def post(self, request, *args, **kwargs):
         """
-        Create a new room.
+        Create a new room with the option to upload a single main photo and multiple additional images.
         """
         if hasattr(request.user, 'landlord_profile'):
             landlord = request.user.landlord_profile
-            data = request.data.copy()  # Copy the data to make modifications
+            data = request.data.copy()
+
+            # Serialize room data
             serializer = RoomSerializer(data=data)
+            
             if serializer.is_valid():
-                # Pass the rent_giver explicitly when saving
-                serializer.save(rent_giver=landlord)
+                room = serializer.save(rent_giver=landlord)
+
+                # Handling the single room photo (from 'photos')
+                if 'photos' in request.FILES:
+                    room.photos = request.FILES['photos']
+                    room.save()
+
+                # Handling the multiple room images (from 'room_images')
+                images = request.FILES.getlist('room_images')
+                if images:
+                    for image in images:
+                        RoomImage.objects.create(room=room, image=image)
+
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({"detail": "Only landlords can create rooms."}, status=status.HTTP_403_FORBIDDEN)
-
 
 # Room Detail, Update, and Delete View
 class RoomDetailAPIView(APIView):
@@ -274,11 +289,33 @@ class RoomDetailAPIView(APIView):
         if room.rent_giver.user != request.user:
             return Response({"detail": "You do not have permission to update this room."}, status=status.HTTP_403_FORBIDDEN)
 
-        serializer = RoomSerializer(room, data=request.data, partial=True)  # Allow partial updates
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # Validate and update room data using RoomSerializer
+        room_serializer = RoomSerializer(room, data=request.data, partial=True, context={'request': request})  # Allow partial updates
+        if room_serializer.is_valid():
+            room = room_serializer.save()
+
+            # # Handling the single room photo (from 'photos')
+            # if 'photos' in request.FILES:
+            #     room.photos = request.FILES['photos']
+            #     room.save()
+
+            # # Handling multiple room images (from 'room_images') using RoomImageSerializer
+            # images_data = request.FILES.getlist('room_images')
+            # if images_data:
+            #     for image in images_data:
+            #         # Create a new RoomImage for each new image file
+            #         image_data = {'room': room.id, 'image': image}
+            #         image_serializer = RoomImageSerializer(data=image_data, partial=True)
+            #         if image_serializer.is_valid():
+            #             image_serializer.save()
+            #         else:
+            #             return Response(image_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            # Return the updated room data
+            return Response(room_serializer.data, status=status.HTTP_200_OK)
+
+        # Return validation errors if any
+        return Response(room_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk, *args, **kwargs):
         """
