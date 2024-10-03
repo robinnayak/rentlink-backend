@@ -293,25 +293,6 @@ class RoomDetailAPIView(APIView):
         room_serializer = RoomSerializer(room, data=request.data, partial=True, context={'request': request})  # Allow partial updates
         if room_serializer.is_valid():
             room = room_serializer.save()
-
-            # # Handling the single room photo (from 'photos')
-            # if 'photos' in request.FILES:
-            #     room.photos = request.FILES['photos']
-            #     room.save()
-
-            # # Handling multiple room images (from 'room_images') using RoomImageSerializer
-            # images_data = request.FILES.getlist('room_images')
-            # if images_data:
-            #     for image in images_data:
-            #         # Create a new RoomImage for each new image file
-            #         image_data = {'room': room.id, 'image': image}
-            #         image_serializer = RoomImageSerializer(data=image_data, partial=True)
-            #         if image_serializer.is_valid():
-            #             image_serializer.save()
-            #         else:
-            #             return Response(image_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-            # Return the updated room data
             return Response(room_serializer.data, status=status.HTTP_200_OK)
 
         # Return validation errors if any
