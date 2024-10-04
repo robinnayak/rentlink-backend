@@ -202,10 +202,10 @@ class RoomGetDetailView(APIView):
                 landlord = request.user.landlord_profile
                 if room.rent_giver != landlord:
                     # If the landlord is not the owner of the room, hide the location URL
-                    data['location_url'] = "You do not own this room, location hidden."
+                    data['location_url'] = "You do not own this room, location hidden. You need to authenticate as a room finder."
         else:
             # For unauthenticated users, hide the location URL
-            data['location_url'] = "Authentication required before Deposit required to view location URL."
+            data['location_url'] = "Authentication required before deposit. Please authenticate to view the location URL."
 
         return Response(data, status=status.HTTP_200_OK)
 
