@@ -15,7 +15,7 @@ class LeaseeAdmin(admin.ModelAdmin):
 
 @admin.register(Room)
 class LeaseeAdmin(admin.ModelAdmin):
-    list_display = ['title', 'rent_giver', 'price', 'is_available', 'rating']
+    list_display = ['id','title', 'rent_giver', 'price', 'is_available', 'rating']
     
 
 @admin.register(Deposit)
