@@ -1,26 +1,40 @@
+# Necessary Imports for Django REST Framework API
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.db import transaction
 from rest_framework import status
 from django.shortcuts import get_object_or_404
-from .models import CustomUser,Leasee,Landlord,Room,Deposit,VisitRequest, Notification,ContactForm,RoomImage
-from .serializers import CustomUserSerializer, CustomUserCreateSerializer,LoginSerializer,LeaseeSerializer,LandlordSerializer,RoomSerializer,DepositSerializer, ContactFormSerializer,RoomImageSerializer
-from rest_framework_simplejwt.tokens import RefreshToken
+from django.db import transaction
 from rest_framework.permissions import IsAuthenticated
-from decimal import Decimal
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.db.models import Q
 from django.contrib.auth import login, logout, authenticate
+from decimal import Decimal
 from django_filters.rest_framework import DjangoFilterBackend
 from rooms.filters import RoomFilter
-from rest_framework.parsers import MultiPartParser, FormParser
+# Importing Models
+from .models import (
+    CustomUser, Leasee, Landlord, Room, Deposit, VisitRequest, Notification, ContactForm, RoomImage
+)
+
+# Importing Serializers
+from .serializers import (
+    CustomUserSerializer, CustomUserCreateSerializer, LoginSerializer, LeaseeSerializer, 
+    LandlordSerializer, RoomSerializer, DepositSerializer, ContactFormSerializer, RoomImageSerializer
+)
+
+# -------------------- AUTHENTICATION VIEWS --------------------
+
 class UserListView(APIView):
+    """Handles retrieval and creation of users."""
     def get(self, request):
+        """Retrieve all users."""
         users = CustomUser.objects.all()
         serializer = CustomUserSerializer(users, many=True)
         return Response(serializer.data)
 
-
     def post(self, request):
+        """Create a new user and ensure atomicity."""
         with transaction.atomic():
             serializer = CustomUserCreateSerializer(data=request.data)
             if serializer.is_valid():
@@ -28,42 +42,51 @@ class UserListView(APIView):
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# some changes to check the git branch 
+
 class UserDetailView(APIView):
+    """Handles retrieval, update, and deletion of a single user."""
     def get(self, request, pk):
-        user = get_object_or_404(CustomUser, pk=pk)
+        """Retrieve a single user by primary key."""
+        user = get_object_or_404(CustomUser.objects.select_related('leasee', 'landlord'), pk=pk)
         serializer = CustomUserSerializer(user)
         return Response(serializer.data)
 
     def put(self, request, pk):
+        """Update a user partially."""
         user = get_object_or_404(CustomUser, pk=pk)
-        serializer = CustomUserCreateSerializer(user, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            serializer = CustomUserCreateSerializer(user, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
+        """Delete a user."""
         user = get_object_or_404(CustomUser, pk=pk)
-        user.delete()
+        with transaction.atomic():
+            user.delete()
         return Response(status=status.HTTP_200_OK)
 
+
 class LoginView(APIView):
+    """Handles user login and JWT token issuance."""
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.validated_data['user']
             refresh = RefreshToken.for_user(user)
-            user = CustomUserSerializer(user).data
+            user_data = CustomUserSerializer(user).data
             return Response({
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
-                'user' :user
-                
+                'user': user_data
             })
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
+
 class LogoutView(APIView):
+    """Handles user logout."""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -76,139 +99,124 @@ class LogoutView(APIView):
             }, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-  
+
+
 class LandlordListView(APIView):
+    """Handles retrieval of all landlords."""
     def get(self, request):
-        landlords = Landlord.objects.all()
+        landlords = Landlord.objects.select_related('user').all()  # Use select_related to avoid N+1 query issue
         serializer = LandlordSerializer(landlords, many=True)
         return Response(serializer.data)
 
-    # def post(self, request):
-    #     serializer = LandlordSerializer(data=request.data)
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class LandlordDetailView(APIView):
+    """Handles retrieval, update, and deletion of a single landlord."""
     def get(self, request, pk):
-        landlord = get_object_or_404(Landlord, pk=pk)
+        landlord = get_object_or_404(Landlord.objects.select_related('user'), pk=pk)
         serializer = LandlordSerializer(landlord)
         return Response(serializer.data)
 
     def put(self, request, pk):
         landlord = get_object_or_404(Landlord, pk=pk)
-        serializer = LandlordSerializer(landlord, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            serializer = LandlordSerializer(landlord, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
         landlord = get_object_or_404(Landlord, pk=pk)
-        landlord.delete()
+        with transaction.atomic():
+            landlord.delete()
         return Response(status=status.HTTP_200_OK)
 
+
 class LeaseeListView(APIView):
+    """Handles retrieval of all leasees."""
     def get(self, request):
-        leasees = Leasee.objects.all()
+        leasees = Leasee.objects.select_related('user').all()  # Use select_related for optimization
         serializer = LeaseeSerializer(leasees, many=True)
         return Response(serializer.data)
 
-    # def post(self, request):
-    #     serializer = LeaseeSerializer(data=request.data)
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class LeaseeDetailView(APIView):
+    """Handles retrieval, update, and deletion of a single leasee."""
     def get(self, request, pk):
-        leasee = get_object_or_404(Leasee, pk=pk)
+        leasee = get_object_or_404(Leasee.objects.select_related('user'), pk=pk)
         serializer = LeaseeSerializer(leasee)
         return Response(serializer.data)
 
     def put(self, request, pk):
         leasee = get_object_or_404(Leasee, pk=pk)
-        serializer = LeaseeSerializer(leasee, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            serializer = LeaseeSerializer(leasee, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
         leasee = get_object_or_404(Leasee, pk=pk)
-        leasee.delete()
+        with transaction.atomic():
+            leasee.delete()
         return Response(status=status.HTTP_200_OK)
 
-# Room List and Create View
 class RoomGetAPIView(APIView):
+    """
+    List all available rooms. Location URL is only shown if:
+    1. The user is the landlord (owner of the room).
+    2. The user is a leasee and has made a deposit for that room.
+    """
     def get(self, request, *args, **kwargs):
-        """
-        List all available rooms.
-        Only show the location URL if:
-        1. The user is the room's landlord (room owner).
-        2. The user is a leasee and has made a deposit for that room.
-        """
-        rooms = Room.objects.filter(is_available=True)  # Listing only available rooms
+        rooms = Room.objects.filter(is_available=True).select_related('rent_giver')  # Optimize query with select_related
         serializer = RoomSerializer(rooms, many=True)
         data = serializer.data
 
         if request.user.is_authenticated:
-            # Check if the user is a leasee
             if hasattr(request.user, 'leasee_profile'):
                 leasee = request.user.leasee_profile
                 for room_data, room_obj in zip(data, rooms):
                     if not room_obj.has_deposit(leasee):
-                        # Hide the location URL if the leasee has not made a deposit
                         room_data['location_url'] = "Deposit required to view location URL."
-            
-            # Check if the user is a landlord
+
             elif hasattr(request.user, 'landlord_profile'):
                 landlord = request.user.landlord_profile
                 for room_data, room_obj in zip(data, rooms):
-                    # If the landlord is not the owner of the room, hide the location URL
                     if room_obj.rent_giver != landlord:
                         room_data['location_url'] = "You do not own this room, location hidden."
         else:
-            # For unauthenticated users, hide the location URL
             for room in data:
                 room['location_url'] = "Deposit required to view location URL."
 
         return Response(data, status=status.HTTP_200_OK)
-    
 
 class RoomGetDetailView(APIView):
+    """
+    Retrieve detailed information about a specific room. Location URL is only shown if:
+    1. The user is the landlord (owner of the room).
+    2. The user is a leasee and has made a deposit for that room.
+    """
     def get(self, request, pk, *args, **kwargs):
-        """
-        Retrieve detailed information about a specific room.
-        Only show the location URL if:
-        1. The user is the room's landlord (room owner).
-        2. The user is a leasee and has made a deposit for that room.
-        """
-        room = get_object_or_404(Room, pk=pk)
+        room = get_object_or_404(Room.objects.select_related('rent_giver'), pk=pk)  # Optimize query with select_related
         serializer = RoomSerializer(room)
         data = serializer.data
 
         if request.user.is_authenticated:
-            # Check if the user is a leasee
             if hasattr(request.user, 'leasee_profile'):
                 leasee = request.user.leasee_profile
                 if not room.has_deposit(leasee):
-                    # Hide the location URL if the leasee has not made a deposit
                     data['location_url'] = "Deposit required to view location URL."
-            
-            # Check if the user is a landlord
+
             elif hasattr(request.user, 'landlord_profile'):
                 landlord = request.user.landlord_profile
                 if room.rent_giver != landlord:
-                    # If the landlord is not the owner of the room, hide the location URL
-                    data['location_url'] = "You do not own this room, location hidden. You need to authenticate as a room finder."
+                    data['location_url'] = "You do not own this room, location hidden."
         else:
-            # For unauthenticated users, hide the location URL
-            data['location_url'] = "Authentication required before deposit. Please authenticate to view the location URL."
+            data['location_url'] = "Authentication required before deposit."
 
         return Response(data, status=status.HTTP_200_OK)
+
 
 class RoomAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -216,100 +224,93 @@ class RoomAPIView(APIView):
 
     def get(self, request, *args, **kwargs):
         """
-        List all rooms related to the authenticated user as a landlord, regardless of availability.
+        List all rooms related to the authenticated landlord.
         """
         if hasattr(request.user, 'landlord_profile'):
-            rooms = Room.objects.filter(rent_giver=request.user.landlord_profile)
-        else:
-            return Response({"detail": "Landlord profile not found."}, status=status.HTTP_403_FORBIDDEN)
-        
-        serializer = RoomSerializer(rooms, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+            rooms = Room.objects.filter(rent_giver=request.user.landlord_profile).select_related('rent_giver')
+            serializer = RoomSerializer(rooms, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"detail": "Landlord profile not found."}, status=status.HTTP_403_FORBIDDEN)
 
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
         """
-        Create a new room with the option to upload a single main photo and multiple additional images.
+        Create a new room with a single main photo and multiple additional images.
+        Only landlords can create rooms.
         """
         if hasattr(request.user, 'landlord_profile'):
             landlord = request.user.landlord_profile
             data = request.data.copy()
 
-            # Serialize room data
             serializer = RoomSerializer(data=data)
-            
             if serializer.is_valid():
                 room = serializer.save(rent_giver=landlord)
 
-                # Handling the single room photo (from 'photos')
+                # Save the main photo
                 if 'photos' in request.FILES:
                     room.photos = request.FILES['photos']
                     room.save()
 
-                # Handling the multiple room images (from 'room_images')
+                # Save additional room images
                 images = request.FILES.getlist('room_images')
                 if images:
-                    for image in images:
-                        RoomImage.objects.create(room=room, image=image)
+                    RoomImage.objects.bulk_create([RoomImage(room=room, image=image) for image in images])
 
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            return Response({"detail": "Only landlords can create rooms."}, status=status.HTTP_403_FORBIDDEN)
 
-# Room Detail, Update, and Delete View
+        return Response({"detail": "Only landlords can create rooms."}, status=status.HTTP_403_FORBIDDEN)
+
+
 class RoomDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk, *args, **kwargs):
         """
-        Retrieve the details of a specific room.
+        Retrieve the details of a specific room. Only show location URL if deposit is made.
         """
-        room = get_object_or_404(Room, pk=pk)
+        room = get_object_or_404(Room.objects.select_related('rent_giver'), pk=pk)
         serializer = RoomSerializer(room)
-        
+
         if hasattr(request.user, 'leasee_profile'):
             leasee = request.user.leasee_profile
             if not room.has_deposit(leasee):
-                # If the leasee has not made a deposit, hide the location_url
                 data = serializer.data
                 data['location_url'] = "Deposit required to view location URL."
                 return Response(data, status=status.HTTP_200_OK)
+
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @transaction.atomic
     def put(self, request, pk, *args, **kwargs):
         """
-        Update an existing room. Ensure only the landlord who created the room can update it.
+        Update a room. Only the landlord who created the room can update it.
         """
         room = get_object_or_404(Room, pk=pk)
 
-        # Check if the user is a landlord
         if not hasattr(request.user, 'landlord_profile'):
             return Response({"detail": "Only landlords can update rooms."}, status=status.HTTP_403_FORBIDDEN)
 
-        # Ensure the user is the rent giver (landlord) who created the room
         if room.rent_giver.user != request.user:
             return Response({"detail": "You do not have permission to update this room."}, status=status.HTTP_403_FORBIDDEN)
 
-        # Validate and update room data using RoomSerializer
-        room_serializer = RoomSerializer(room, data=request.data, partial=True, context={'request': request})  # Allow partial updates
-        if room_serializer.is_valid():
-            room = room_serializer.save()
-            return Response(room_serializer.data, status=status.HTTP_200_OK)
+        serializer = RoomSerializer(room, data=request.data, partial=True)
+        if serializer.is_valid():
+            room = serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
-        # Return validation errors if any
-        return Response(room_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @transaction.atomic
     def delete(self, request, pk, *args, **kwargs):
         """
-        Delete an existing room. Ensure only the landlord who created the room can delete it.
+        Delete a room. Only the landlord who created the room can delete it.
         """
         room = get_object_or_404(Room, pk=pk)
 
-        # Check if the user is a landlord
         if not hasattr(request.user, 'landlord_profile'):
             return Response({"detail": "Only landlords can delete rooms."}, status=status.HTTP_403_FORBIDDEN)
 
-        # Ensure the user is the rent giver (landlord) who created the room
         if room.rent_giver.user != request.user:
             return Response({"detail": "You do not have permission to delete this room."}, status=status.HTTP_403_FORBIDDEN)
 

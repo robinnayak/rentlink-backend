@@ -6,8 +6,11 @@ from rooms.locations import LOCATION_CHOICES
 from django.core.mail import send_mail
 from django.conf import settings
 from cloudinary.models import CloudinaryField
-# Custom user manager
+
+# Custom User Manager
 class CustomUserManager(BaseUserManager):
+    """Manager for custom user model."""
+
     def create_user(self, email, password=None, **extra_fields):
         """Create and return a regular user with an email and password."""
         if not email:
@@ -19,7 +22,7 @@ class CustomUserManager(BaseUserManager):
         return user
 
     def create_superuser(self, email, password=None, **extra_fields):
-        """Create and return a superuser."""
+        """Create and return a superuser with staff and superuser permissions."""
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
 
@@ -30,10 +33,14 @@ class CustomUserManager(BaseUserManager):
 
         return self.create_user(email, password, **extra_fields)
 
+# Custom User Model
 class CustomUser(AbstractBaseUser, PermissionsMixin):
+    """Custom user model with support for email-based authentication."""
+    
     email = models.EmailField(_('email address'), unique=True)
     first_name = models.CharField(max_length=50)
-    last_name = models.CharField(max_length=50,blank=True)
+    last_name = models.CharField(max_length=50, blank=True)
+    
     password = models.CharField(
         max_length=128,
         validators=[
@@ -43,17 +50,21 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             )
         ]
     )
+    
     contact_number = models.CharField(
-    max_length=15,
-    help_text="Contact phone number"
+        max_length=15,
+        help_text="Contact phone number"
     )
-    is_landowner = models.BooleanField(default=False, help_text="Check this if the user is a landowner, otherwise they will be a leasee.")
+    
+    is_landowner = models.BooleanField(default=False, help_text="Check if the user is a landowner; otherwise, they are a lessee.")
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
-    
+
+    # Manager
     objects = CustomUserManager()
 
+    # Authentication fields
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']
 
@@ -61,7 +72,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return self.email
 
     def save(self, *args, **kwargs):
+        """Override save method to assign users to the appropriate group."""
         super().save(*args, **kwargs)
+
         # Automatically assign the user to the appropriate group
         from django.contrib.auth.models import Group
         if self.is_landowner:
@@ -72,8 +85,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             Leasee.objects.get_or_create(user=self)
         self.groups.add(group)
 
+
 # Landlord Model
 class Landlord(models.Model):
+    """Model representing a landlord, linked to a user."""
+    
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='landlord_profile')
     address = models.CharField(max_length=255, choices=LOCATION_CHOICES, help_text="Select a location")
     sub_address = models.CharField(max_length=255, null=True, blank=True, help_text="Street name or additional address details")
@@ -84,6 +100,8 @@ class Landlord(models.Model):
 
 # Leasee (Lessee) Model
 class Leasee(models.Model):
+    """Model representing a leasee (lessee), linked to a user."""
+    
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='leasee_profile')
     address = models.CharField(max_length=255, choices=LOCATION_CHOICES, help_text="Select a location")
     sub_address = models.CharField(max_length=255, null=True, blank=True, help_text="Street name or additional address details")
@@ -94,8 +112,10 @@ class Leasee(models.Model):
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name} - Leasee"
 
-# Rent Giver is referenced through the Landlord model (assumed it's linked to CustomUser)
+# Room Model
 class Room(models.Model):
+    """Represents a rentable room, linked to a landlord."""
+    
     rent_giver = models.ForeignKey(Landlord, on_delete=models.CASCADE, related_name='rooms')
     title = models.CharField(max_length=255, help_text="A brief title for the room.")
     description = models.TextField(help_text="Detailed description of the room and its facilities.")
@@ -114,7 +134,6 @@ class Room(models.Model):
     
     # Availability and Photos
     is_available = models.BooleanField(default=True, help_text="Is the room available for rent?")
-    # photos = models.ImageField(upload_to='room_photos/', null=True, blank=True, help_text="Upload room photos.")
     photos = CloudinaryField('room_photos/', null=True, blank=True, help_text="Upload room photos.")
     
     # Ratings and Reviews
@@ -127,21 +146,27 @@ class Room(models.Model):
     
     def __str__(self):
         return f"{self.title} - {self.rent_giver.user.email}"
-    
+
     def has_deposit(self, leasee):
-        """
-        Check if the given leasee has made a successful deposit for this room.
-        """
+        """Check if the given leasee has made a successful deposit for this room."""
         return self.deposits.filter(leasee=leasee, payment_status='paid').exists()
 
+
+# Room Image Model
 class RoomImage(models.Model):
+    """Represents images associated with a room."""
+    
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='room_images')
-    image = CloudinaryField('room_image', null=True,blank=True, help_text="Upload an image of the room.")
+    image = CloudinaryField('room_image', null=True, blank=True, help_text="Upload an image of the room.")
 
     def __str__(self):
         return f"Image for {self.room.title} - {self.room.rent_giver.user.email}"
 
+
+# Deposit Model
 class Deposit(models.Model):
+    """Represents a deposit payment made by a leasee for a room."""
+    
     leasee = models.ForeignKey(Leasee, on_delete=models.CASCADE, related_name='deposits')
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='deposits')
     amount = models.DecimalField(max_digits=10, decimal_places=2, help_text="Amount of the deposit required.")
@@ -155,11 +180,16 @@ class Deposit(models.Model):
         """Check if the deposit is fully paid."""
         return self.payment_status == 'paid'
 
+
+# Visit Request Model
 class VisitRequest(models.Model):
+    """Represents a visit request made by a leasee to visit a room."""
+    
     leasee = models.ForeignKey(Leasee, on_delete=models.CASCADE, related_name='visit_requests')
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='visit_requests')
     request_date = models.DateTimeField(auto_now_add=True, help_text="Date and time when the visit request was made.")
     
+    # Status options
     VISIT_STATUS_CHOICES = [
         ('pending', 'Pending'),     # Request is waiting for approval
         ('confirmed', 'Confirmed'), # Visit confirmed by the landlord
@@ -169,17 +199,17 @@ class VisitRequest(models.Model):
     
     def __str__(self):
         return f"Visit request for {self.room.title} by {self.leasee.user.email} - {self.status}"
-    
+
     def confirm(self):
         """Confirm the visit request."""
         self.status = 'confirmed'
         self.save()
-    
+
     def cancel(self):
         """Cancel the visit request."""
         self.status = 'cancelled'
         self.save()
-    
+
     def notify_landlord_by_email(self):
         """Notify the landlord via email when a visit request is made."""
         subject = "New Visit Request"
@@ -193,10 +223,9 @@ class VisitRequest(models.Model):
         """Create an in-app notification for the landlord."""
         message = f"{self.leasee.user.first_name} {self.leasee.user.last_name} has requested to visit your room titled '{self.room.title}'."
         Notification.objects.create(user=self.room.rent_giver.user, message=message)
-    
-    
+
     def save(self, *args, **kwargs):
-        # Only send notification when a new request is created
+        """Override save to send notification when a new request is created."""
         if not self.pk:
             super().save(*args, **kwargs)
             self.notify_landlord_by_email()
@@ -204,7 +233,11 @@ class VisitRequest(models.Model):
         else:
             super().save(*args, **kwargs)
 
+
+# Notification Model
 class Notification(models.Model):
+    """Represents notifications for users."""
+    
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='notifications')
     message = models.TextField(help_text="Notification message")
     is_read = models.BooleanField(default=False, help_text="Has the notification been read?")
@@ -214,32 +247,33 @@ class Notification(models.Model):
         return f"Notification for {self.user.email} - {'Read' if self.is_read else 'Unread'}"
 
     def mark_as_read(self):
+        """Mark the notification as read."""
         self.is_read = True
         self.save()
 
+
+# Contact Form Model
 class ContactForm(models.Model):
-    # Subject choices
+    """Represents a contact form submission from a user."""
+    
+    # Subject and status choices
     SUBJECT_CHOICES = [
         ('problem', 'Problem'),
         ('feedback', 'Feedback'),
         ('suggestion', 'Suggestion'),
         ('question', 'Question'),
     ]
-
-    # Status choices
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('resolved', 'Resolved'),
     ]
-
+    
     # Model fields
     name = models.CharField(max_length=255)
     email = models.EmailField()
     subject = models.CharField(max_length=50, choices=SUBJECT_CHOICES)
     message = models.TextField()
-    status = models.CharField(
-        max_length=10, choices=STATUS_CHOICES, default='pending'
-    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)  # To track when the form was submitted
 
     def __str__(self):
