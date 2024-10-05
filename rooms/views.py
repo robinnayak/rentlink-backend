@@ -28,6 +28,7 @@ class UserListView(APIView):
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+# some changes to check the git branch 
 class UserDetailView(APIView):
     def get(self, request, pk):
         user = get_object_or_404(CustomUser, pk=pk)
