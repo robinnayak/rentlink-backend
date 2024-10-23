@@ -3,8 +3,28 @@ from rest_framework.response import Response
 from django.db import transaction
 from rest_framework import status
 from django.shortcuts import get_object_or_404
-from .models import CustomUser,Leasee,Landlord,Room,Deposit,VisitRequest, Notification,ContactForm,RoomImage
-from .serializers import CustomUserSerializer, CustomUserCreateSerializer,LoginSerializer,LeaseeSerializer,LandlordSerializer,RoomSerializer,DepositSerializer, ContactFormSerializer,RoomImageSerializer
+from .models import (
+    CustomUser,
+    Leasee,
+    Landlord,
+    Room,
+    Deposit,
+    VisitRequest,
+    Notification,
+    ContactForm,
+    RoomImage,
+)
+from .serializers import (
+    CustomUserSerializer,
+    CustomUserCreateSerializer,
+    LoginSerializer,
+    LeaseeSerializer,
+    LandlordSerializer,
+    RoomSerializer,
+    DepositSerializer,
+    ContactFormSerializer,
+    RoomImageSerializer,
+)
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
 from decimal import Decimal
@@ -14,12 +34,13 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rooms.filters import RoomFilter
 from rest_framework.parsers import MultiPartParser, FormParser
 from .renderer import UserRenderer
+
+
 class UserListView(APIView):
     def get(self, request):
         users = CustomUser.objects.all()
         serializer = CustomUserSerializer(users, many=True)
         return Response(serializer.data)
-
 
     def post(self, request):
         with transaction.atomic():
@@ -28,6 +49,7 @@ class UserListView(APIView):
                 serializer.save()
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class UserDetailView(APIView):
     def get(self, request, pk):
@@ -48,21 +70,24 @@ class UserDetailView(APIView):
         user.delete()
         return Response(status=status.HTTP_200_OK)
 
+
 class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.validated_data['user']
+            user = serializer.validated_data["user"]
             refresh = RefreshToken.for_user(user)
             user = CustomUserSerializer(user).data
-            return Response({
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-                'user' :user
-                
-            })
+            return Response(
+                {
+                    "refresh": str(refresh),
+                    "access": str(refresh.access_token),
+                    "user": user,
+                }
+            )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
+
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -70,19 +95,19 @@ class LogoutView(APIView):
         try:
             user = request.user
             logout(request)
-            return Response({
-                'message': 'User logged out successfully',
-                'user': user.email
-            }, status=status.HTTP_200_OK)
+            return Response(
+                {"message": "User logged out successfully", "user": user.email},
+                status=status.HTTP_200_OK,
+            )
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-  
+
+
 class LandlordListView(APIView):
     def get(self, request):
         landlords = Landlord.objects.all()
         serializer = LandlordSerializer(landlords, many=True)
         return Response(serializer.data)
-
 
 
 class LandlordDetailView(APIView):
@@ -104,12 +129,12 @@ class LandlordDetailView(APIView):
         landlord.delete()
         return Response(status=status.HTTP_200_OK)
 
+
 class LeaseeListView(APIView):
     def get(self, request):
         leasees = Leasee.objects.all()
         serializer = LeaseeSerializer(leasees, many=True)
         return Response(serializer.data)
-
 
 
 class LeaseeDetailView(APIView):
@@ -131,6 +156,7 @@ class LeaseeDetailView(APIView):
         leasee.delete()
         return Response(status=status.HTTP_200_OK)
 
+
 # Room List and Create View
 class RoomGetAPIView(APIView):
     renderer_classes = [UserRenderer]
@@ -138,7 +164,9 @@ class RoomGetAPIView(APIView):
     def get(self, request):
         try:
             # Fetch all rooms
-            rooms = Room.objects.filter(is_available=True)  # Listing only available rooms
+            rooms = Room.objects.filter(
+                is_available=True
+            )  # Listing only available rooms
             serializer = RoomSerializer(rooms, many=True)
             data = serializer.data
 
@@ -186,21 +214,28 @@ class RoomGetDetailView(APIView):
         try:
             serialzer = RoomSerializer(room)
             data = serialzer.data
-            if hasattr(request.user, "leasee_profile"):
-                leasee = request.user.leasee_profile
-                if not room.has_deposit(leasee=leasee):
-                    data["location_url"] = (
-                        "Deposit required to view the Locaion on map directly."
-                    )
+            if request.user.is_authenticated:
 
-            elif hasattr(request.user, "landlord_profile"):
-                landlord = request.user.landlord_profile
-                if room.rent_giver != landlord:
-                    if not room.has_deposit(landlord=landlord):
-
+                if hasattr(request.user, "leasee_profile"):
+                    leasee = request.user.leasee_profile
+                    if not room.has_deposit(leasee=leasee):
                         data["location_url"] = (
                             "Deposit required to view the Locaion on map directly."
                         )
+
+                elif hasattr(request.user, "landlord_profile"):
+                    landlord = request.user.landlord_profile
+                    if room.rent_giver != landlord:
+                        if not room.has_deposit(landlord=landlord):
+
+                            data["location_url"] = (
+                                "Deposit required to view the Locaion on map directly."
+                            )
+            else:
+                # For unathenticated users, hide the location URL
+                data["location_url"] = (
+                    "You don't have access to this room. Location is hidden. Please log in to continue."
+                )
             return Response(data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response(
@@ -208,8 +243,9 @@ class RoomGetDetailView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+
 class RoomAPIView(APIView):
-    renderer_classes=[UserRenderer]
+    renderer_classes = [UserRenderer]
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]  # To handle file uploads
 
@@ -217,11 +253,14 @@ class RoomAPIView(APIView):
         """
         List all rooms related to the authenticated user as a landlord, regardless of availability.
         """
-        if hasattr(request.user, 'landlord_profile'):
+        if hasattr(request.user, "landlord_profile"):
             rooms = Room.objects.filter(rent_giver=request.user.landlord_profile)
         else:
-            return Response({"detail": "Landlord profile not found."}, status=status.HTTP_403_FORBIDDEN)
-        
+            return Response(
+                {"detail": "Landlord profile not found."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         serializer = RoomSerializer(rooms, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -261,6 +300,7 @@ class RoomAPIView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 # Room Detail, Update, and Delete View
 class RoomDetailAPIView(APIView):
@@ -337,6 +377,7 @@ class RoomDetailAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+
 class DepositAPIView(APIView):
     permission_classes = [IsAuthenticated]
     renderer_classes = [UserRenderer]
@@ -379,15 +420,21 @@ class DepositAPIView(APIView):
             {"detail": "Deposit successful."}, status=status.HTTP_201_CREATED
         )
 
+
 class ConfirmVisitRequestView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, visit_request_id):
-        visit_request = get_object_or_404(VisitRequest, id=visit_request_id, room__rent_giver__user=request.user)
-        
+        visit_request = get_object_or_404(
+            VisitRequest, id=visit_request_id, room__rent_giver__user=request.user
+        )
+
         visit_request.confirm()
-        
-        return Response({"detail": "Visit request confirmed."}, status=status.HTTP_200_OK)
+
+        return Response(
+            {"detail": "Visit request confirmed."}, status=status.HTTP_200_OK
+        )
+
 
 class VisitRequestListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -395,19 +442,22 @@ class VisitRequestListView(APIView):
     def get(self, request):
         # Get all visit requests for the current landlord
         landlord = request.user.landlord_profile
-        visit_requests = VisitRequest.objects.filter(room__rent_giver=landlord).order_by('-request_date')
-        
+        visit_requests = VisitRequest.objects.filter(
+            room__rent_giver=landlord
+        ).order_by("-request_date")
+
         data = [
             {
-                'leasee': f"{visit.leasee.user.first_name} {visit.leasee.user.last_name}",
-                'room': visit.room.title,
-                'status': visit.status,
-                'request_date': visit.request_date
+                "leasee": f"{visit.leasee.user.first_name} {visit.leasee.user.last_name}",
+                "room": visit.room.title,
+                "status": visit.status,
+                "request_date": visit.request_date,
             }
             for visit in visit_requests
         ]
-        
+
         return Response(data, status=status.HTTP_200_OK)
+
 
 # Leasee can create visit requests
 class CreateVisitRequestView(APIView):
@@ -415,24 +465,30 @@ class CreateVisitRequestView(APIView):
 
     def post(self, request):
         leasee = get_object_or_404(Leasee, user=request.user)
-        room_id = request.data.get('room_id')
+        room_id = request.data.get("room_id")
 
         room = get_object_or_404(Room, id=room_id)
 
         # Check if the leasee already has a pending or confirmed request
         existing_request = VisitRequest.objects.filter(
-            leasee=leasee, room=room, status__in=['pending', 'confirmed']
+            leasee=leasee, room=room, status__in=["pending", "confirmed"]
         ).exists()
-        
+
         if existing_request:
             return Response(
-                {"error": "You already have a pending or confirmed visit request for this room."},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    "error": "You already have a pending or confirmed visit request for this room."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Create the visit request
         visit_request = VisitRequest.objects.create(leasee=leasee, room=room)
-        return Response({"detail": "Visit request created successfully."}, status=status.HTTP_201_CREATED)
+        return Response(
+            {"detail": "Visit request created successfully."},
+            status=status.HTTP_201_CREATED,
+        )
+
 
 # Only the landlord can confirm visit requests
 class ConfirmVisitRequestView(APIView):
@@ -443,11 +499,16 @@ class ConfirmVisitRequestView(APIView):
         landlord = get_object_or_404(Landlord, user=request.user)
 
         # Get the visit request, ensuring it's for the current landlord's room
-        visit_request = get_object_or_404(VisitRequest, id=visit_request_id, room__rent_giver=landlord)
+        visit_request = get_object_or_404(
+            VisitRequest, id=visit_request_id, room__rent_giver=landlord
+        )
 
         # Confirm the visit request
         visit_request.confirm()
-        return Response({"detail": "Visit request confirmed."}, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "Visit request confirmed."}, status=status.HTTP_200_OK
+        )
+
 
 # Only the landlord can cancel visit requests
 class CancelVisitRequestView(APIView):
@@ -458,35 +519,45 @@ class CancelVisitRequestView(APIView):
         landlord = get_object_or_404(Landlord, user=request.user)
 
         # Get the visit request, ensuring it's for the current landlord's room
-        visit_request = get_object_or_404(VisitRequest, id=visit_request_id, room__rent_giver=landlord)
+        visit_request = get_object_or_404(
+            VisitRequest, id=visit_request_id, room__rent_giver=landlord
+        )
 
         # Cancel the visit request
         visit_request.cancel()
-        return Response({"detail": "Visit request cancelled."}, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "Visit request cancelled."}, status=status.HTTP_200_OK
+        )
+
 
 class NotificationListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        notifications = request.user.notifications.all().order_by('-created_at')
+        notifications = request.user.notifications.all().order_by("-created_at")
         notification_data = [
             {
-                'id': notification.id,
-                'message': notification.message,
-                'is_read': notification.is_read,
-                'created_at': notification.created_at
+                "id": notification.id,
+                "message": notification.message,
+                "is_read": notification.is_read,
+                "created_at": notification.created_at,
             }
             for notification in notifications
         ]
         return Response(notification_data, status=status.HTTP_200_OK)
 
+
 class MarkNotificationAsReadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, notification_id):
-        notification = get_object_or_404(Notification, id=notification_id, user=request.user)
+        notification = get_object_or_404(
+            Notification, id=notification_id, user=request.user
+        )
         notification.mark_as_read()
-        return Response({"detail": "Notification marked as read."}, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "Notification marked as read."}, status=status.HTTP_200_OK
+        )
 
 
 class RoomFilterView(APIView):
@@ -496,19 +567,19 @@ class RoomFilterView(APIView):
         # Apply filters using RoomFilter
         filter_backends = DjangoFilterBackend()
         filterset = RoomFilter(request.query_params, queryset=queryset)
-        
+
         if filterset.is_valid():
             queryset = filterset.qs
-        
+
         # Apply ordering
-        ordering = request.query_params.get('ordering', None)
+        ordering = request.query_params.get("ordering", None)
         if ordering:
-            if ordering in ['price', '-price', 'rating', '-rating']:
+            if ordering in ["price", "-price", "rating", "-rating"]:
                 queryset = queryset.order_by(ordering)
 
         # Pagination
-        page = request.query_params.get('page', 1)
-        page_size = request.query_params.get('page_size', 10)
+        page = request.query_params.get("page", 1)
+        page_size = request.query_params.get("page_size", 10)
         start = (int(page) - 1) * int(page_size)
         end = start + int(page_size)
         paginated_queryset = queryset[start:end]
