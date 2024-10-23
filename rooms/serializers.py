@@ -123,9 +123,18 @@ class RoomSerializer(serializers.ModelSerializer):
 class DepositSerializer(serializers.ModelSerializer):
     class Meta:
         model = Deposit
-        fields = ['id', 'leasee', 'room', 'amount', 'payment_status', 'deposit_date']
-        read_only_fields = ['id', 'deposit_date']
-
+        fields = ['id','leasee','landlord','room','amount','payment_status','deposit_date']
+        read_only_fields = ['id','deposit_date']
+        
+    def validate(self,data):
+        leasee = data.get('leasee')
+        landlord = data.get('landlord')
+        room = data.get('room')
+        
+        if room.has_deposit(leasee=leasee,landlord=landlord):
+            raise serializers.ValidationError("Deposit already exists")
+        
+        return data
 class ContactFormSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactForm

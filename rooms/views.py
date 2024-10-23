@@ -13,6 +13,7 @@ from django.contrib.auth import login, logout, authenticate
 from django_filters.rest_framework import DjangoFilterBackend
 from rooms.filters import RoomFilter
 from rest_framework.parsers import MultiPartParser, FormParser
+from .renderer import UserRenderer
 class UserListView(APIView):
     def get(self, request):
         users = CustomUser.objects.all()
@@ -82,12 +83,7 @@ class LandlordListView(APIView):
         serializer = LandlordSerializer(landlords, many=True)
         return Response(serializer.data)
 
-    # def post(self, request):
-    #     serializer = LandlordSerializer(data=request.data)
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class LandlordDetailView(APIView):
     def get(self, request, pk):
@@ -114,12 +110,7 @@ class LeaseeListView(APIView):
         serializer = LeaseeSerializer(leasees, many=True)
         return Response(serializer.data)
 
-    # def post(self, request):
-    #     serializer = LeaseeSerializer(data=request.data)
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class LeaseeDetailView(APIView):
     def get(self, request, pk):
@@ -142,74 +133,83 @@ class LeaseeDetailView(APIView):
 
 # Room List and Create View
 class RoomGetAPIView(APIView):
-    def get(self, request, *args, **kwargs):
-        """
-        List all available rooms.
-        Only show the location URL if:
-        1. The user is the room's landlord (room owner).
-        2. The user is a leasee and has made a deposit for that room.
-        """
-        rooms = Room.objects.filter(is_available=True)  # Listing only available rooms
-        serializer = RoomSerializer(rooms, many=True)
-        data = serializer.data
+    renderer_classes = [UserRenderer]
 
-        if request.user.is_authenticated:
-            # Check if the user is a leasee
-            if hasattr(request.user, 'leasee_profile'):
-                leasee = request.user.leasee_profile
-                for room_data, room_obj in zip(data, rooms):
-                    if not room_obj.has_deposit(leasee):
-                        # Hide the location URL if the leasee has not made a deposit
-                        room_data['location_url'] = "Deposit required to view location URL."
-            
-            # Check if the user is a landlord
-            elif hasattr(request.user, 'landlord_profile'):
-                landlord = request.user.landlord_profile
-                for room_data, room_obj in zip(data, rooms):
-                    # If the landlord is not the owner of the room, hide the location URL
-                    if room_obj.rent_giver != landlord:
-                        room_data['location_url'] = "You do not own this room, location hidden."
-        else:
-            # For unauthenticated users, hide the location URL
-            for room in data:
-                room['location_url'] = "Deposit required to view location URL."
+    def get(self, request):
+        try:
+            # Fetch all rooms
+            rooms = Room.objects.filter(is_available=True)  # Listing only available rooms
+            serializer = RoomSerializer(rooms, many=True)
+            data = serializer.data
 
-        return Response(data, status=status.HTTP_200_OK)
-    
+            if request.user.is_authenticated:
+                # For Leasee users
+                if hasattr(request.user, "leasee_profile"):
+                    leasee = request.user.leasee_profile
+                    for room_data, room_obj in zip(data, rooms):
+                        if not room_obj.has_deposit(leasee=leasee):
+                            room_data["location_url"] = (
+                                "Deposit required to view location on map directly"
+                            )
+
+                # For Landlord users
+                elif hasattr(request.user, "landlord_profile"):
+                    landlord = (
+                        request.user.landlord_profile
+                    )  # Ensure this is a Landlord instance
+                    for room_data, room_obj in zip(data, rooms):
+                        if room_obj.rent_giver != landlord:
+                            if not room_obj.has_deposit(landlord=landlord):
+                                room_data["location_url"] = (
+                                    "Deposit required to view location on map directly"
+                                )
+            else:
+                # If the user is not authenticated
+                for room_data in data:
+                    room_data["location_url"] = (
+                        "Login required to view location on map directly"
+                    )
+
+            return Response(data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"message": str(e), "error": "Something went wrong"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
 
 class RoomGetDetailView(APIView):
     def get(self, request, pk, *args, **kwargs):
-        """
-        Retrieve detailed information about a specific room.
-        Only show the location URL if:
-        1. The user is the room's landlord (room owner).
-        2. The user is a leasee and has made a deposit for that room.
-        """
-        room = get_object_or_404(Room, pk=pk)
-        serializer = RoomSerializer(room)
-        data = serializer.data
 
-        if request.user.is_authenticated:
-            # Check if the user is a leasee
-            if hasattr(request.user, 'leasee_profile'):
+        room = get_object_or_404(Room, pk=pk)
+        try:
+            serialzer = RoomSerializer(room)
+            data = serialzer.data
+            if hasattr(request.user, "leasee_profile"):
                 leasee = request.user.leasee_profile
-                if not room.has_deposit(leasee):
-                    # Hide the location URL if the leasee has not made a deposit
-                    data['location_url'] = "Deposit required to view location URL."
-            
-            # Check if the user is a landlord
-            elif hasattr(request.user, 'landlord_profile'):
+                if not room.has_deposit(leasee=leasee):
+                    data["location_url"] = (
+                        "Deposit required to view the Locaion on map directly."
+                    )
+
+            elif hasattr(request.user, "landlord_profile"):
                 landlord = request.user.landlord_profile
                 if room.rent_giver != landlord:
-                    # If the landlord is not the owner of the room, hide the location URL
-                    data['location_url'] = "You do not own this room, location hidden. You need to authenticate as a room finder."
-        else:
-            # For unauthenticated users, hide the location URL
-            data['location_url'] = "Authentication required before deposit. Please authenticate to view the location URL."
+                    if not room.has_deposit(landlord=landlord):
 
-        return Response(data, status=status.HTTP_200_OK)
+                        data["location_url"] = (
+                            "Deposit required to view the Locaion on map directly."
+                        )
+            return Response(data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {"message": str(e), "error": "Something went wrong"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 class RoomAPIView(APIView):
+    renderer_classes=[UserRenderer]
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]  # To handle file uploads
 
@@ -225,126 +225,159 @@ class RoomAPIView(APIView):
         serializer = RoomSerializer(rooms, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def post(self, request, *args, **kwargs):
-        """
-        Create a new room with the option to upload a single main photo and multiple additional images.
-        """
-        if hasattr(request.user, 'landlord_profile'):
-            landlord = request.user.landlord_profile
-            data = request.data.copy()
+    def post(self, request):
 
-            # Serialize room data
-            serializer = RoomSerializer(data=data)
-            
+        if hasattr(request.user, "landlord_profile"):
+            landlord = request.user.landlord_profile
+            if not landlord:
+                return Response(
+                    {"message": "Landlord profile not found"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            serializer = RoomSerializer(data=request.data)
+
             if serializer.is_valid():
                 room = serializer.save(rent_giver=landlord)
 
-                # Handling the single room photo (from 'photos')
-                if 'photos' in request.FILES:
-                    room.photos = request.FILES['photos']
+                if "photos" in request.FILES:
+                    room.photos = request.FILES["photos"]
                     room.save()
 
-                # Handling the multiple room images (from 'room_images')
-                images = request.FILES.getlist('room_images')
+                images = request.FILES.getlist("room_images")
                 if images:
                     for image in images:
                         RoomImage.objects.create(room=room, image=image)
 
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({"detail": "Only landlords can create rooms."}, status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"message": "You are not athenticated as landlord"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data = request.data
+        serializer = RoomSerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Room Detail, Update, and Delete View
 class RoomDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    renderer_classes = [UserRenderer]
+    parser_classes = [MultiPartParser, FormParser]
 
     def get(self, request, pk, *args, **kwargs):
-        """
-        Retrieve the details of a specific room.
-        """
+
         room = get_object_or_404(Room, pk=pk)
-        serializer = RoomSerializer(room)
-        
-        if hasattr(request.user, 'leasee_profile'):
-            leasee = request.user.leasee_profile
-            if not room.has_deposit(leasee):
-                # If the leasee has not made a deposit, hide the location_url
-                data = serializer.data
-                data['location_url'] = "Deposit required to view location URL."
-                return Response(data, status=status.HTTP_200_OK)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        try:
+            serialzer = RoomSerializer(room)
+            data = serialzer.data
+            if hasattr(request.user, "leasee_profile"):
+                leasee = request.user.leasee_profile
+                if not room.has_deposit(leasee=leasee):
+                    data["location_url"] = (
+                        "Deposit required to view the Locaion on map directly."
+                    )
+
+            elif hasattr(request.user, "landlord_profile"):
+                landlord = request.user.landlord_profile
+                if room.rent_giver != landlord:
+                    if not room.has_deposit(landlord=landlord):
+
+                        data["location_url"] = (
+                            "Deposit required to view the Locaion on map directly."
+                        )
+            return Response(data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {"message": str(e), "error": "Something went wrong"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     def put(self, request, pk, *args, **kwargs):
-        """
-        Update an existing room. Ensure only the landlord who created the room can update it.
-        """
         room = get_object_or_404(Room, pk=pk)
+        try:
+            if not request.user.landlord_profile == room.rent_giver:
+                return Response(
+                    {"message": "You are not authorized to edit this room"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        # Check if the user is a landlord
-        if not hasattr(request.user, 'landlord_profile'):
-            return Response({"detail": "Only landlords can update rooms."}, status=status.HTTP_403_FORBIDDEN)
+            data = request.data
+            serializer = RoomSerializer(room, data=data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Ensure the user is the rent giver (landlord) who created the room
-        if room.rent_giver.user != request.user:
-            return Response({"detail": "You do not have permission to update this room."}, status=status.HTTP_403_FORBIDDEN)
-
-        # Validate and update room data using RoomSerializer
-        room_serializer = RoomSerializer(room, data=request.data, partial=True, context={'request': request})  # Allow partial updates
-        if room_serializer.is_valid():
-            room = room_serializer.save()
-            return Response(room_serializer.data, status=status.HTTP_200_OK)
-
-        # Return validation errors if any
-        return Response(room_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response(
+                {"message": str(e), "error": "Something went wrong"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     def delete(self, request, pk, *args, **kwargs):
-        """
-        Delete an existing room. Ensure only the landlord who created the room can delete it.
-        """
         room = get_object_or_404(Room, pk=pk)
-
-        # Check if the user is a landlord
-        if not hasattr(request.user, 'landlord_profile'):
-            return Response({"detail": "Only landlords can delete rooms."}, status=status.HTTP_403_FORBIDDEN)
-
-        # Ensure the user is the rent giver (landlord) who created the room
-        if room.rent_giver.user != request.user:
-            return Response({"detail": "You do not have permission to delete this room."}, status=status.HTTP_403_FORBIDDEN)
-
-        room.delete()
-        return Response({"detail": "Room deleted successfully."}, status=status.HTTP_200_OK)
+        try:
+            if not request.user.landlord_profile == room.rent_giver:
+                return Response(
+                    {"message": "You are not authorized to delete this room"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            room.delete()
+            return Response(
+                {"message": "Room deleted successfully"},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                {"message": str(e), "error": "Something went wrong"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 class DepositAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    renderer_classes = [UserRenderer]
 
     def post(self, request, *args, **kwargs):
-        """
-        Create a deposit for a room. Assume a payment is made externally and its status is updated accordingly.
-        """
-        room = get_object_or_404(Room, pk=request.data.get('room_id'))
-        if hasattr(request.user, 'leasee_profile'):
-            leasee = request.user.leasee_profile
+        room = get_object_or_404(Room, pk=request.data.get("room_id"))
 
-            # Check if a deposit already exists for this room by this leasee
-            deposit, created = Deposit.objects.get_or_create(
-                leasee=leasee, 
-                room=room, 
-                # defaults={'amount': room.price * Decimal('0.1')}  # Example: deposit is 10% of room price
-                defaults={'amount': Decimal('20')}  # Example: deposit is 10% of room price
+        # Determine if the user is a leasee or a landlord
+        if hasattr(request.user, "leasee_profile"):
+            profile = request.user.leasee_profile
+            user_type = "leasee"
+        elif (
+            hasattr(request.user, "landlord_profile")
+            and request.user.landlord_profile != room.rent_giver
+        ):
+            profile = request.user.landlord_profile
+            user_type = "landlord"
+        else:
+            return Response(
+                {"detail": "You are not authorized to make a deposit."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-            
-            if not created and deposit.is_paid():
-                return Response({"detail": "Deposit already paid."}, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Handle deposit payment (external payment integration would go here)
-            # Assuming the deposit is successfully paid externally
-            deposit.payment_status = 'paid'
-            deposit.save()
 
-            return Response({"detail": "Deposit successful."}, status=status.HTTP_201_CREATED)
+        # Get or create the deposit instance
+        deposit, created = Deposit.objects.get_or_create(
+            **{user_type: profile, "room": room}, defaults={"amount": Decimal("20")}
+        )
 
-        return Response({"detail": "Leasee profile not found."}, status=status.HTTP_403_FORBIDDEN)
+        # Check if the deposit has already been paid
+        if not created and deposit.is_paid():
+            return Response(
+                {"detail": "Deposit already paid."}, status=status.HTTP_200_OK
+            )
+
+        # Mark the deposit as paid
+        deposit.payment_status = "paid"
+        deposit.save()
+
+        return Response(
+            {"detail": "Deposit successful."}, status=status.HTTP_201_CREATED
+        )
 
 class ConfirmVisitRequestView(APIView):
     permission_classes = [IsAuthenticated]
