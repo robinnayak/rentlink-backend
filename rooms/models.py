@@ -128,11 +128,18 @@ class Room(models.Model):
     def __str__(self):
         return f"{self.title} - {self.rent_giver.user.email}"
     
-    def has_deposit(self, leasee):
-        """
-        Check if the given leasee has made a successful deposit for this room.
-        """
-        return self.deposits.filter(leasee=leasee, payment_status='paid').exists()
+    def has_deposit(self, leasee=None, landlord=None):
+        """Check if the room has a deposit."""
+        if leasee:
+            return self.room_deposits.filter(leasee=leasee).exists()
+        elif landlord:
+            return self.room_deposits.filter(landlord=landlord).exists()
+        return False
+    # def has_deposit(self, leasee):
+    #     """
+    #     Check if the given leasee has made a successful deposit for this room.
+    #     """
+    #     return self.deposits.filter(leasee=leasee, payment_status='paid').exists()
 
 class RoomImage(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='room_images')
@@ -142,8 +149,9 @@ class RoomImage(models.Model):
         return f"Image for {self.room.title} - {self.room.rent_giver.user.email}"
 
 class Deposit(models.Model):
-    leasee = models.ForeignKey(Leasee, on_delete=models.CASCADE, related_name='deposits')
-    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='deposits')
+    leasee = models.ForeignKey(Leasee, on_delete=models.CASCADE, blank=True,null=True ,related_name='leasee_deposits')
+    landlord = models.ForeignKey(Landlord, on_delete=models.CASCADE,blank=True,null=True, related_name='landlord_deposits')
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='room_deposits')
     amount = models.DecimalField(max_digits=10, decimal_places=2, help_text="Amount of the deposit required.")
     payment_status = models.CharField(max_length=10, choices=[('pending', 'Pending'), ('paid', 'Paid')], default='pending', help_text="Status of the deposit payment.")
     deposit_date = models.DateTimeField(auto_now_add=True)
