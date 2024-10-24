@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin, Group
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import RegexValidator
-from rooms.locations import LOCATION_CHOICES
+from rooms.locations import LOCATION_CHOICES,PROVINCE_CHOICES
 from django.core.mail import send_mail
 from django.conf import settings
 from cloudinary.models import CloudinaryField
@@ -102,6 +102,8 @@ class Room(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Rental price (can be per day, week, or month).")
     
     # Location Fields
+    province = models.CharField(max_length=255, choices=PROVINCE_CHOICES, help_text="Select a province")
+    district = models.CharField(max_length=255, help_text="District name")
     address = models.CharField(max_length=255, help_text="Full address of the room.")
     sub_address = models.CharField(max_length=255, help_text="Street name or specific sub-address.")
     location_url = models.URLField(max_length=500, help_text="URL for the map location of the room.")
@@ -114,7 +116,6 @@ class Room(models.Model):
     
     # Availability and Photos
     is_available = models.BooleanField(default=True, help_text="Is the room available for rent?")
-    # photos = models.ImageField(upload_to='room_photos/', null=True, blank=True, help_text="Upload room photos.")
     photos = CloudinaryField('room_photos/', null=True, blank=True, help_text="Upload room photos.")
     
     # Ratings and Reviews
@@ -135,12 +136,7 @@ class Room(models.Model):
         elif landlord:
             return self.room_deposits.filter(landlord=landlord).exists()
         return False
-    # def has_deposit(self, leasee):
-    #     """
-    #     Check if the given leasee has made a successful deposit for this room.
-    #     """
-    #     return self.deposits.filter(leasee=leasee, payment_status='paid').exists()
-
+    
 class RoomImage(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='room_images')
     image = CloudinaryField('room_image', null=True,blank=True, help_text="Upload an image of the room.")

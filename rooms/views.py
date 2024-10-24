@@ -34,7 +34,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rooms.filters import RoomFilter
 from rest_framework.parsers import MultiPartParser, FormParser
 from .renderer import UserRenderer
-
+from rest_framework.exceptions import UnsupportedMediaType
 
 class UserListView(APIView):
     def get(self, request):
@@ -345,19 +345,31 @@ class RoomDetailAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            # Validate content type
+            if not request.content_type.startswith('multipart/form-data'):
+                raise UnsupportedMediaType(request.content_type)
+
             data = request.data
-            serializer = RoomSerializer(room, data=data, partial=True)
+            print("data",data)
+            serializer = RoomSerializer(room, data=data, partial=True, context={'request': request})
+            
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data, status=status.HTTP_200_OK)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except UnsupportedMediaType as e:
+            return Response(
+                {"message": f"Unsupported media type: {str(e)}", "error": "Media type not allowed"},
+                status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            )
 
         except Exception as e:
             return Response(
                 {"message": str(e), "error": "Something went wrong"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
+        
     def delete(self, request, pk, *args, **kwargs):
         room = get_object_or_404(Room, pk=pk)
         try:
