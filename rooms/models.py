@@ -135,11 +135,6 @@ class Room(models.Model):
         elif landlord:
             return self.room_deposits.filter(landlord=landlord).exists()
         return False
-    # def has_deposit(self, leasee):
-    #     """
-    #     Check if the given leasee has made a successful deposit for this room.
-    #     """
-    #     return self.deposits.filter(leasee=leasee, payment_status='paid').exists()
 
 class RoomImage(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='room_images')

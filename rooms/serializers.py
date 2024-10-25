@@ -82,7 +82,6 @@ class RoomImageSerializer(serializers.ModelSerializer):
 class RoomSerializer(serializers.ModelSerializer):
     owner_email = serializers.ReadOnlyField(source='rent_giver.user.email')
     contact_number = serializers.ReadOnlyField(source='rent_giver.user.contact_number')
-    # Nested serializer for room images
     room_images = RoomImageSerializer(many=True, required=False)
 
     class Meta:
@@ -91,23 +90,24 @@ class RoomSerializer(serializers.ModelSerializer):
             'id', 'owner_email', 'contact_number', 'title', 'description', 'price', 
             'address', 'sub_address', 'location_url', 
             'has_electricity', 'has_wifi', 'has_water_supply', 'has_parking',
-            'is_available', 'photos','room_images' ,'rating', 
+            'is_available', 'photos', 'room_images', 'rating', 
             'pets_allowed', 'smoking_allowed', 'curfew_time'
         ]
         read_only_fields = ['id', 'owner_email', 'contact_number']
-    
+
     def update(self, instance, validated_data):
         # Handle room images update
         room_images_data = self.context['request'].FILES.getlist('room_images')
         if room_images_data:
-            RoomImage.objects.filter(room=instance).delete()  # Clear existing images
+            # Delete existing images and add new ones
+            RoomImage.objects.filter(room=instance).delete()
             for image_data in room_images_data:
                 RoomImage.objects.create(room=instance, image=image_data)
 
         # Update other fields
         instance = super().update(instance, validated_data)
         return instance
-    
+
     def validate_price(self, value):
         """Ensure the price is positive."""
         if value <= 0:
@@ -119,6 +119,7 @@ class RoomSerializer(serializers.ModelSerializer):
         if value and not (value.startswith('http://') or value.startswith('https://')):
             raise serializers.ValidationError("Location URL must start with 'http://' or 'https://'.")
         return value
+
 
 class DepositSerializer(serializers.ModelSerializer):
     class Meta:
