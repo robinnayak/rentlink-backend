@@ -80,17 +80,17 @@ WSGI_APPLICATION = 'roomlink.wsgi.application'
 
 # Database
 # Replace the database engine and credentials with what you need.
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 # Database configuration using environment variable
-# DATABASES = {
-#     'default': db_url(config('DATABASE_URL'))
-# }
+DATABASES = {
+    'default': db_url(config('DATABASE_URL'))
+}
 
 # Custom User Model
 AUTH_USER_MODEL = 'rooms.CustomUser'  # Replace 'your_app_name' with the actual app name

@@ -36,6 +36,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from .renderer import UserRenderer
 from rest_framework.exceptions import UnsupportedMediaType
 
+
 class UserListView(APIView):
     def get(self, request):
         users = CustomUser.objects.all()
@@ -306,7 +307,7 @@ class RoomAPIView(APIView):
 class RoomDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
     renderer_classes = [UserRenderer]
-    parser_classes = [MultiPartParser, FormParser]
+    # parser_classes = [MultiPartParser, FormParser]
 
     def get(self, request, pk, *args, **kwargs):
 
@@ -339,37 +340,30 @@ class RoomDetailAPIView(APIView):
     def put(self, request, pk, *args, **kwargs):
         room = get_object_or_404(Room, pk=pk)
         try:
+            # Ensure that the authenticated user is the rent_giver of the room
             if not request.user.landlord_profile == room.rent_giver:
                 return Response(
                     {"message": "You are not authorized to edit this room"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Validate content type
-            if not request.content_type.startswith('multipart/form-data'):
-                raise UnsupportedMediaType(request.content_type)
-
             data = request.data
-            print("data",data)
-            serializer = RoomSerializer(room, data=data, partial=True, context={'request': request})
-            
+            serializer = RoomSerializer(
+                room, data=data, partial=True, context={"request": request}
+            )
+
             if serializer.is_valid():
                 serializer.save()
                 return Response(serializer.data, status=status.HTTP_200_OK)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        except UnsupportedMediaType as e:
-            return Response(
-                {"message": f"Unsupported media type: {str(e)}", "error": "Media type not allowed"},
-                status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            )
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             return Response(
                 {"message": str(e), "error": "Something went wrong"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
     def delete(self, request, pk, *args, **kwargs):
         room = get_object_or_404(Room, pk=pk)
         try:
@@ -574,7 +568,7 @@ class MarkNotificationAsReadView(APIView):
 
 class RoomFilterView(APIView):
     def get(self, request, *args, **kwargs):
-        queryset = Room.objects.all()
+        queryset = Room.objects.filter(is_available=True)
 
         # Apply filters using RoomFilter
         filter_backends = DjangoFilterBackend()
