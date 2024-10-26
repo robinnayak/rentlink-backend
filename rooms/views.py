@@ -104,6 +104,7 @@ class LogoutView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+# Landlord List View
 class LandlordListView(APIView):
     def get(self, request):
         landlords = Landlord.objects.all()
@@ -111,26 +112,39 @@ class LandlordListView(APIView):
         return Response(serializer.data)
 
 
+# Landlord Detail View
 class LandlordDetailView(APIView):
-    def get(self, request, pk):
-        landlord = get_object_or_404(Landlord, pk=pk)
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [UserRenderer]
+
+    def get(self, request):
+        user = request.user
+        landlord = get_object_or_404(Landlord, user=user)
         serializer = LandlordSerializer(landlord)
         return Response(serializer.data)
 
-    def put(self, request, pk):
-        landlord = get_object_or_404(Landlord, pk=pk)
+    def put(self, request):
+        user = request.user
+        landlord = get_object_or_404(Landlord, user=user)
         serializer = LandlordSerializer(landlord, data=request.data, partial=True)
+
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
+            serializer.save()  # Save updated data
+
+            # Re-serialize to get updated instance with all fields
+            updated_serializer = LandlordSerializer(landlord)
+            return Response(updated_serializer.data, status=status.HTTP_200_OK)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, pk):
-        landlord = get_object_or_404(Landlord, pk=pk)
+    def delete(self, request):
+        user = request.user
+        landlord = get_object_or_404(Landlord, user=user)
         landlord.delete()
-        return Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+# Leasee List View
 class LeaseeListView(APIView):
     def get(self, request):
         leasees = Leasee.objects.all()
@@ -138,24 +152,32 @@ class LeaseeListView(APIView):
         return Response(serializer.data)
 
 
+# Leasee Detail View
 class LeaseeDetailView(APIView):
-    def get(self, request, pk):
-        leasee = get_object_or_404(Leasee, pk=pk)
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [UserRenderer]
+
+    def get(self, request):
+        user = request.user
+        leasee = get_object_or_404(Leasee, user=user)
+        print("lease", leasee)
         serializer = LeaseeSerializer(leasee)
         return Response(serializer.data)
 
-    def put(self, request, pk):
-        leasee = get_object_or_404(Leasee, pk=pk)
+    def put(self, request):
+        user = request.user
+        leasee = get_object_or_404(Leasee, user=user)
         serializer = LeaseeSerializer(leasee, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, pk):
-        leasee = get_object_or_404(Leasee, pk=pk)
+    def delete(self, request):
+        user = request.user
+        leasee = get_object_or_404(Leasee, user=user)
         leasee.delete()
-        return Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # Room List and Create View

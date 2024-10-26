@@ -75,7 +75,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 # Landlord Model
 class Landlord(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='landlord_profile')
-    address = models.CharField(max_length=255, choices=LOCATION_CHOICES, help_text="Select a location")
+    profile_image = CloudinaryField('profile_landlord_image', null=True,blank=True, help_text="Upload an image of the room.")
+    province = models.CharField(max_length=255, choices=PROVINCE_CHOICES, help_text="Select a province",blank=True,null=True)
+    district = models.CharField(max_length=255, help_text="District name",blank=True,null=True)
+    address = models.CharField(max_length=255, help_text="Full address of the room.",blank=True,null=True)
     sub_address = models.CharField(max_length=255, null=True, blank=True, help_text="Street name or additional address details")
     date_of_registration = models.DateTimeField(auto_now_add=True)
 
@@ -85,11 +88,14 @@ class Landlord(models.Model):
 # Leasee (Lessee) Model
 class Leasee(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='leasee_profile')
-    address = models.CharField(max_length=255, choices=LOCATION_CHOICES, help_text="Select a location")
+    profile_image = CloudinaryField('profile_leasee_image', null=True,blank=True, help_text="Upload an image of the room.")
+    province = models.CharField(max_length=255, choices=PROVINCE_CHOICES, help_text="Select a province",blank=True,null=True)
+    district = models.CharField(max_length=255, help_text="District name",blank=True,null=True)
+    address = models.CharField(max_length=255, help_text="Full address of the room.", blank=True,null=True)
     sub_address = models.CharField(max_length=255, null=True, blank=True, help_text="Street name or additional address details")
     preferred_location = models.CharField(max_length=255, null=True, blank=True, help_text="Preferred location for lease")
-    reviews = models.TextField(null=True, blank=True, help_text="Reviews from previous landlords")
-    location_url = models.URLField(max_length=500, null=True, blank=True, help_text="URL for the map location of the renter")
+    # reviews = models.TextField(null=True, blank=True, help_text="Reviews from previous landlords")
+    # location_url = models.URLField(max_length=500, null=True, blank=True, help_text="URL for the map location of the renter")
 
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name} - Leasee"

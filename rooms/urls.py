@@ -29,9 +29,9 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='logout'),
     
     path('landlords/', LandlordListView.as_view(), name='landlord-list'),
-    path('landlords/<int:pk>/', LandlordDetailView.as_view(), name='landlord-detail'),
+    path('landlord/', LandlordDetailView.as_view(), name='landlord-detail'),
     path('leasees/', LeaseeListView.as_view(), name='leasee-list'),
-    path('leasees/<int:pk>/', LeaseeDetailView.as_view(), name='leasee-detail'),
+    path('leasee/', LeaseeDetailView.as_view(), name='leasee-detail'),
     path('rooms/', RoomAPIView.as_view(), name='room-api'),
     path('rooms/<int:pk>/', RoomDetailAPIView.as_view(), name='room-detail-api'),
     path('deposit/', DepositAPIView.as_view(), name='deposit'),
