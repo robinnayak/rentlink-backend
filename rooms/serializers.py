@@ -100,10 +100,14 @@ class LoginSerializer(serializers.Serializer):
         return data
 
 
+# Landlord Serializer
 class LandlordSerializer(serializers.ModelSerializer):
     email = serializers.ReadOnlyField(source="user.email")
     first_name = serializers.ReadOnlyField(source="user.first_name")
     last_name = serializers.ReadOnlyField(source="user.last_name")
+    contact_number = serializers.ReadOnlyField(source="user.contact_number")
+    profile_image = serializers.ImageField(allow_null=True, required=False)  # Uncommented to allow image uploads
+
 
     class Meta:
         model = Landlord
@@ -112,17 +116,23 @@ class LandlordSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "contact_number",
+            "profile_image",
+            "province",
+            "district",
             "address",
             "sub_address",
             "date_of_registration",
         ]
 
 
+# Leasee Serializer
 class LeaseeSerializer(serializers.ModelSerializer):
     email = serializers.ReadOnlyField(source="user.email")
     first_name = serializers.ReadOnlyField(source="user.first_name")
     last_name = serializers.ReadOnlyField(source="user.last_name")
     contact_number = serializers.ReadOnlyField(source="user.contact_number")
+    profile_image = serializers.ImageField(allow_null=True, required=False)  # Uncommented to allow image uploads
+
 
     class Meta:
         model = Leasee
@@ -131,11 +141,12 @@ class LeaseeSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "contact_number",
+            "profile_image",
+            "province",
+            "district",
             "address",
             "sub_address",
             "preferred_location",
-            "reviews",
-            "location_url",
         ]
 
 
