@@ -24,6 +24,7 @@ from .serializers import (
     DepositSerializer,
     ContactFormSerializer,
     RoomImageSerializer,
+    RoomCommentSerializer
 )
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
@@ -630,5 +631,29 @@ class ContactFormView(APIView):
         serializer = ContactFormSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()  # Save the new form data
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RoomCommentAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, room_id):
+        """Retrieve all comments for a specific room."""
+        room = Room.objects.filter(id=room_id).first()
+        if not room:
+            return Response({"detail": "Room not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        comments = room.comments.all()
+        serializer = RoomCommentSerializer(comments, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        room = get_object_or_404(Room, pk=kwargs['room_id'])
+        user = request.user  # Assuming the user is authenticated
+
+        serializer = RoomCommentSerializer(data=request.data, context={'room': room, 'user': user})
+        if serializer.is_valid():
+            serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

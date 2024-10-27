@@ -19,7 +19,7 @@ from .views import (
     RoomGetDetailView,
     LogoutView,
     RoomFilterView,
-    ContactFormView
+    ContactFormView,RoomCommentAPIView
 )
 
 urlpatterns = [
@@ -50,6 +50,8 @@ urlpatterns = [
 
     path('rooms-filter/', RoomFilterView.as_view(), name='room-list'),
     
-    path('contact/', ContactFormView.as_view(), name='contact-form')
+    path('contact/', ContactFormView.as_view(), name='contact-form'),
+    
+    path('roomsview/<int:room_id>/comments/',RoomCommentAPIView.as_view(),name='room-comments'),
 ]
 

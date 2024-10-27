@@ -254,3 +254,14 @@ class ContactForm(models.Model):
 
     def __str__(self):
         return f'{self.name} - {self.subject} ({self.status})'
+
+# Comment or Query Model for Room
+class RoomComment(models.Model):
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='comments')
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='room_comments')
+    comment_text = models.TextField(help_text="Add a comment or query about the room.")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Comment by {self.user.email} on {self.room.title}"
+

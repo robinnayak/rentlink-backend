@@ -9,6 +9,7 @@ from rooms.models import (
     Deposit,
     ContactForm,
     RoomImage,
+    RoomComment,
 )
 from django.contrib.auth import authenticate
 from django.utils.translation import gettext_lazy as _
@@ -106,8 +107,9 @@ class LandlordSerializer(serializers.ModelSerializer):
     first_name = serializers.ReadOnlyField(source="user.first_name")
     last_name = serializers.ReadOnlyField(source="user.last_name")
     contact_number = serializers.ReadOnlyField(source="user.contact_number")
-    profile_image = serializers.ImageField(allow_null=True, required=False)  # Uncommented to allow image uploads
-
+    profile_image = serializers.ImageField(
+        allow_null=True, required=False
+    )  # Uncommented to allow image uploads
 
     class Meta:
         model = Landlord
@@ -131,8 +133,9 @@ class LeaseeSerializer(serializers.ModelSerializer):
     first_name = serializers.ReadOnlyField(source="user.first_name")
     last_name = serializers.ReadOnlyField(source="user.last_name")
     contact_number = serializers.ReadOnlyField(source="user.contact_number")
-    profile_image = serializers.ImageField(allow_null=True, required=False)  # Uncommented to allow image uploads
-
+    profile_image = serializers.ImageField(
+        allow_null=True, required=False
+    )  # Uncommented to allow image uploads
 
     class Meta:
         model = Leasee
@@ -259,3 +262,43 @@ class ContactFormSerializer(serializers.ModelSerializer):
         if value not in dict(ContactForm.SUBJECT_CHOICES):
             raise serializers.ValidationError("Invalid subject choice")
         return value
+
+
+class RoomCommentSerializer(serializers.ModelSerializer):
+    room = serializers.PrimaryKeyRelatedField(
+        queryset=Room.objects.all(), required=False
+    )
+    user = serializers.PrimaryKeyRelatedField(
+        queryset=CustomUser.objects.all(), required=False
+    )
+    commenter_name = serializers.SerializerMethodField()
+    room_title = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RoomComment
+        fields = [
+            "id",
+            "room",
+            "room_title",
+            "user",
+            "commenter_name",
+            "comment_text",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at", "commenter_name", "room_title"]
+
+    def get_commenter_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}"
+
+    def get_room_title(self, obj):
+        return obj.room.title
+
+    def validate(self, data):
+        # Optional validation, for example, checking if the user has permissions.
+        return data
+
+    def create(self, validated_data):
+        # Automatically set room and user from context (API view)
+        validated_data["room"] = self.context["room"]
+        validated_data["user"] = self.context["user"]
+        return super().create(validated_data)
