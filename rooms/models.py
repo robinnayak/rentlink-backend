@@ -265,3 +265,12 @@ class RoomComment(models.Model):
     def __str__(self):
         return f"Comment by {self.user.email} on {self.room.title}"
 
+class IdentityVerification(models.Model):
+    room = models.OneToOneField(Room, on_delete=models.CASCADE, related_name='identity')
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='room_identity')
+    identity_image = CloudinaryField('identity_images/', help_text="Upload an identity document (e.g., citizenship, college ID).")
+    is_verified = models.BooleanField(default=False, help_text="Indicates whether the user's identity has been verified.")
+
+    def __str__(self):
+        return f"{self.user.email} - Verified: {self.is_verified}"
+        

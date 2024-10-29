@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CustomUser, Landlord, Leasee,Room,Deposit,Notification, VisitRequest,ContactForm,RoomImage
+from .models import CustomUser, Landlord, Leasee,Room,Deposit,Notification, VisitRequest,ContactForm,RoomImage,RoomComment, IdentityVerification
 
 @admin.register(CustomUser)
 class CustomUserAdmin(admin.ModelAdmin):
@@ -24,6 +24,15 @@ class LeaseeAdmin(admin.ModelAdmin):
 @admin.register(ContactForm)
 class LeaseeAdmin(admin.ModelAdmin):
     list_display = ('id','name', 'email', 'subject', 'message','status',)
+
+@admin.register(RoomComment)
+class RoomCommentAdmin(admin.ModelAdmin):
+    list_display = ('user', 'room', 'comment_text', 'created_at')
+
+@admin.register(IdentityVerification)
+class IdentityVerificationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'room', 'identity_image', 'is_verified')
+
 
 admin.site.register(Notification)
 admin.site.register(VisitRequest)
