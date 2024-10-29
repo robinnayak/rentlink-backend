@@ -9,6 +9,7 @@ from rooms.models import (
     Deposit,
     ContactForm,
     RoomImage,
+    IdentityVerification,
     RoomComment,
 )
 from django.contrib.auth import authenticate
@@ -302,3 +303,33 @@ class RoomCommentSerializer(serializers.ModelSerializer):
         validated_data["room"] = self.context["room"]
         validated_data["user"] = self.context["user"]
         return super().create(validated_data)
+
+
+class IdentityVerificationSerializer(serializers.ModelSerializer):
+    room = serializers.PrimaryKeyRelatedField(
+        queryset=Room.objects.all(), required=False
+    )
+    user = serializers.PrimaryKeyRelatedField(
+        queryset=CustomUser.objects.all(), required=False
+    )
+
+    class Meta:
+        model = IdentityVerification
+        fields = ["id", "room", "user", "identity_image", "is_verified"]
+        read_only_fields = ["is_verified"]
+
+    def validate(self, data):
+        # Optionally add other validations if needed
+        return data
+
+    def create(self, validated_data):
+        # validated_data["is_verified"] = bool(validated_data.get('identity_image'))
+        validated_data["room"] = self.context["room"]
+        validated_data["user"] = self.context["user"]
+        return super().create(validated_data)
+    
+    def update(self, instance, validated_data):
+        # Update identity image or other fields if needed
+        instance.identity_image = validated_data.get("identity_image", instance.identity_image)
+        instance.save()
+        return instance

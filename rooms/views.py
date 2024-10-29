@@ -13,6 +13,7 @@ from .models import (
     Notification,
     ContactForm,
     RoomImage,
+    IdentityVerification,
 )
 from .serializers import (
     CustomUserSerializer,
@@ -24,7 +25,8 @@ from .serializers import (
     DepositSerializer,
     ContactFormSerializer,
     RoomImageSerializer,
-    RoomCommentSerializer
+    RoomCommentSerializer,
+    IdentityVerificationSerializer,
 )
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
@@ -642,18 +644,97 @@ class RoomCommentAPIView(APIView):
         """Retrieve all comments for a specific room."""
         room = Room.objects.filter(id=room_id).first()
         if not room:
-            return Response({"detail": "Room not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Room not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         comments = room.comments.all()
         serializer = RoomCommentSerializer(comments, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
-        room = get_object_or_404(Room, pk=kwargs['room_id'])
+        room = get_object_or_404(Room, pk=kwargs["room_id"])
         user = request.user  # Assuming the user is authenticated
 
-        serializer = RoomCommentSerializer(data=request.data, context={'room': room, 'user': user})
+        serializer = RoomCommentSerializer(
+            data=request.data, context={"room": room, "user": user}
+        )
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class IdentityVerificationAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [UserRenderer]
+
+    def get(self, request, room_id):
+        room = get_object_or_404(Room, pk=room_id)
+        identity = IdentityVerification.objects.filter(room=room,user=request.user).first()
+
+        if not identity:
+            return Response(
+                {"detail": "Identity verification not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = IdentityVerificationSerializer(identity)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        room = get_object_or_404(Room, pk=kwargs["room_id"])
+        user = request.user
+
+        # Check for existing verification
+        if IdentityVerification.objects.filter(room=room, user=user).exists():
+            return Response(
+                {"detail": "Verification entry already exists for this user and room."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = IdentityVerificationSerializer(
+            data=request.data, context={"room": room, "user": user}
+        )
+        if serializer.is_valid():
+            identity_verification = serializer.save()  # Save the object first
+            # Set is_verified to True after the object is created
+            identity_verification.is_verified = True
+            identity_verification.save(
+                update_fields=["is_verified"]
+            )  # Update only the is_verified field
+
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, room_id):
+        room = get_object_or_404(Room, pk=room_id)
+        identity = IdentityVerification.objects.filter(room=room, user=request.user).first()
+
+        if not identity:
+            return Response(
+                {"detail": "Identity verification not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = IdentityVerificationSerializer(identity, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()  # Update the object
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, room_id):
+        room = get_object_or_404(Room, pk=room_id)
+        identity = IdentityVerification.objects.filter(room=room, user=request.user).first()
+
+        if not identity:
+            return Response(
+                {"detail": "Identity verification not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        identity.delete()
+        return Response(
+            {"detail": "Identity verification deleted successfully."},
+            status=status.HTTP_200_OK
+        )
