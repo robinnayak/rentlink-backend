@@ -163,7 +163,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://rentlink-frontend.vercel.app",  # Add your deployed frontend's address
     "https://rentlink-5e93b.web.app", # Firebase deployed
     "https://rentroomnepal.vercel.app",
-    "https://www.roomrentnepal.site/"
+    "https://www.roomrentnepal.site",
 ]
 
 # Static and media files
