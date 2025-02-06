@@ -90,9 +90,9 @@ WSGI_APPLICATION = 'roomlink.wsgi.application'
 # Database configuration using environment variable
 
 
-print(config('DATABASE_Public_URL'))
+print(config('DATABASE_URL'))
 DATABASES = {
-    'default': db_url(config('DATABASE_Public_URL'))
+    'default': db_url(config('DATABASE_URL'))
 }
 
 # Custom User Model

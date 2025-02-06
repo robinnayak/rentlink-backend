@@ -1,5 +1,4 @@
 # Ignore environment variables
-.env
 
 # Ignore database configuration
 config/database.yml
