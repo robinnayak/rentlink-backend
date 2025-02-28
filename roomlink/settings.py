@@ -167,6 +167,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://rentlink-5e93b.web.app", # Firebase deployed
     "https://rentroomnepal.vercel.app",
     "https://www.roomrentnepal.site",
+    "https://roomrentnepal.robinspt.com"
 ]
 
 # Static and media files
